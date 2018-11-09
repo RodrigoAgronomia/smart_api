@@ -15,84 +15,85 @@ from matplotlib import pyplot as plt
 import Model as Net
 import os
 import time
+import base64
 from argparse import ArgumentParser
 device = 'cpu'
 if torch.cuda.is_available():
-    device = 'cuda'
+	device = 'cuda'
 
 
 # In[2]:
 
 
 def colorir(cat):
-    h, w = cat.shape[:2]
-    msk = np.zeros((h,w,3), dtype = 'uint8')
-    msk[cat == 1] = [0,0,128]
-    msk[cat == 2] = [0,0,255]
-    msk[cat == 3] = [0,128,0]
-    msk[cat == 4] = [0,255,0]
-    return(msk)
+	h, w = cat.shape[:2]
+	msk = np.zeros((h,w,3), dtype = 'uint8')
+	msk[cat == 1] = [0,0,128]
+	msk[cat == 2] = [0,0,255]
+	msk[cat == 3] = [0,128,0]
+	msk[cat == 4] = [0,255,0]
+	return(msk)
 
 
 # In[3]:
 
 
 def calc_bb(tw, th, iw, ih):
-    n_v = int(np.ceil(tw/iw))
-    n_h = int(np.ceil(th/ih))
+	n_v = int(np.ceil(tw/iw))
+	n_h = int(np.ceil(th/ih))
 
-    in_height = np.int(np.ceil(th/n_h))
-    in_width = np.int(np.ceil(tw/n_v))
-    
-    mrgmx = 80 * (1 + np.round(in_height/80)) - in_height
-    mrgmy = 80 * (1 + np.round(in_width/80)) - in_width
+	in_height = np.int(np.ceil(th/n_h))
+	in_width = np.int(np.ceil(tw/n_v))
+	
+	mrgmx = 80 * (1 + np.round(in_height/80)) - in_height
+	mrgmy = 80 * (1 + np.round(in_width/80)) - in_width
 
-    ex_height = np.int(in_height + 2 * mrgmx)
-    ex_width = np.int(in_width + 2 * mrgmy)
+	ex_height = np.int(in_height + 2 * mrgmx)
+	ex_width = np.int(in_width + 2 * mrgmy)
 
-    ex_height = np.int(8 * np.ceil(ex_height/8))
-    ex_width = np.int(8 * np.ceil(ex_width/8))
+	ex_height = np.int(8 * np.ceil(ex_height/8))
+	ex_width = np.int(8 * np.ceil(ex_width/8))
 
-    in_height = ex_height - 2 * mrgmx
-    in_width = ex_width - 2 * mrgmy
-
-
-    coordsx = mrgmx * np.array([[0,-2],[2,0]])
-    for i in range(n_v - 2):
-        coordsx = np.insert(coordsx, 1, [-mrgmx, mrgmx], axis = 1)
-
-    coordsy = mrgmy * np.array([[0,-2],[2,0]])
-    for i in range(n_h - 2):
-        coordsy = np.insert(coordsy, 1, [-mrgmy, mrgmy], axis = 1)
-
-    xc = np.array([np.array(range(n_v)), np.array(range(n_v)) + 1])
-    yc = np.array([np.array(range(n_h)), np.array(range(n_h)) + 1])
-    xc = np.int0(coordsx + in_width * xc)
-    yc = np.int0(coordsy + in_height * yc)
-
-    xc[0,n_v - 1] = tw - in_width - 2 * mrgmx
-    xc[1,n_v - 1] = tw
-    yc[0,n_h - 1] = th - in_height - 2 * mrgmy
-    yc[1,n_h - 1] = th
+	in_height = ex_height - 2 * mrgmx
+	in_width = ex_width - 2 * mrgmy
 
 
-    xco = -coordsx
-    xco[1] = xco[0] + in_width
-    xco[1] = xco[0] + in_width
+	coordsx = mrgmx * np.array([[0,-2],[2,0]])
+	for i in range(n_v - 2):
+		coordsx = np.insert(coordsx, 1, [-mrgmx, mrgmx], axis = 1)
 
-    yco = -coordsy
-    yco[1] = yco[0] + in_height
-    yco[1] = yco[0] + in_height
+	coordsy = mrgmy * np.array([[0,-2],[2,0]])
+	for i in range(n_h - 2):
+		coordsy = np.insert(coordsy, 1, [-mrgmy, mrgmy], axis = 1)
 
-    yco = np.int0(yco)
-    xco = np.int0(xco)
-    
-    if n_h == 1:
-        yc = yco = np.array([[0],[th]])
-    if n_v == 1:
-        xc = xco = np.array([[0],[tw]])
-        
-    return([xc, yc, xco, yco])
+	xc = np.array([np.array(range(n_v)), np.array(range(n_v)) + 1])
+	yc = np.array([np.array(range(n_h)), np.array(range(n_h)) + 1])
+	xc = np.int0(coordsx + in_width * xc)
+	yc = np.int0(coordsy + in_height * yc)
+
+	xc[0,n_v - 1] = tw - in_width - 2 * mrgmx
+	xc[1,n_v - 1] = tw
+	yc[0,n_h - 1] = th - in_height - 2 * mrgmy
+	yc[1,n_h - 1] = th
+
+
+	xco = -coordsx
+	xco[1] = xco[0] + in_width
+	xco[1] = xco[0] + in_width
+
+	yco = -coordsy
+	yco[1] = yco[0] + in_height
+	yco[1] = yco[0] + in_height
+
+	yco = np.int0(yco)
+	xco = np.int0(xco)
+	
+	if n_h == 1:
+		yc = yco = np.array([[0],[th]])
+	if n_v == 1:
+		xc = xco = np.array([[0],[tw]])
+		
+	return([xc, yc, xco, yco])
 
 
 # In[4]:
@@ -105,7 +106,7 @@ parser.add_argument('--scaleIn', type=int, default=8, help='For ESPNet-C, scaleI
 parser.add_argument('--max_epochs', type=int, default=1501, help='Max. number of epochs')
 parser.add_argument('--num_workers', type=int, default=4, help='No. of parallel threads')
 parser.add_argument('--batch_size', type=int, default=2, help='Batch size. 12 for ESPNet-C and 6 for ESPNet. '
-                                                               'Change as per the GPU memory')
+															   'Change as per the GPU memory')
 parser.add_argument('--step_loss', type=int, default=100, help='Decrease learning rate after how many epochs.')
 parser.add_argument('--lr', type=float, default=5e-4, help='Initial learning rate')
 parser.add_argument('--savedir', default='./results', help='directory to save the results')
@@ -116,7 +117,7 @@ parser.add_argument('--logFile', default='trainValLog.txt', help='File that stor
 parser.add_argument('--onGPU', default=False, help='Run on CPU or GPU. If TRUE, then GPU.')
 parser.add_argument('--decoder', type=bool, default=False,help='True if ESPNet. False for ESPNet-C') # False for encoder
 parser.add_argument('--pretrained', default='../pretrained/encoder/espnet_p_2_q_8.pth', help='Pretrained ESPNet-C weights. '
-                                                                          'Only used when training ESPNet')
+																		  'Only used when training ESPNet')
 parser.add_argument('--p', default=2, type=int, help='depth multiplier')
 parser.add_argument('--q', default=8, type=int, help='depth multiplier')
 
@@ -138,7 +139,7 @@ data = pickle.load(open('data/data.p', "rb"))
 
 up = torch.nn.Upsample(scale_factor=8, mode='bilinear')
 up = up.to(device)
-            
+			
 print('Modelo Ok')
 
 
@@ -152,57 +153,83 @@ n_classes = len(data['classWeights'])
 
 input_height = 1080
 input_width = 960
- 
-def get_plants(img_name):
-    start_time = time.time()
-    
-    img = cv2.imread(img_name)
-    imgo = img.copy()
-    img = img.astype(np.float32)
-    img -= rgb_mean
-    img /= rgb_std
-    
-    total_width, total_height = img.shape[:2]
-    xc, yc, xco, yco = calc_bb(total_width, total_height, input_height, input_width)
 
-    time_taken = time.time() - start_time
-    print('PreProc time: %.2f' % time_taken)
-    
-    preds_l = []
-    for yi in range(yc.shape[1]):
-        for xi in range(xc.shape[1]):
-            im = img[xc[0,xi]:xc[1,xi],yc[0,yi]:yc[1,yi]]   
-            im = im.reshape(np.insert(im.shape, 0, 1))
-            im = np.moveaxis(im, 3, 1)
-            img_tensor = torch.from_numpy(im)
-            img_variable = Variable(img_tensor)
-            img_variable = img_variable.to(device)
-            img_out = modelA(img_variable)
-            img_out = up(img_out)
-            preds = img_out.cpu().data.numpy()
-            preds = preds[:,:,xco[0,xi]:xco[1,xi],yco[0,yi]:yco[1,yi]] 
-            preds_l.append(preds)
-            
-            
-    time_taken = time.time() - start_time - time_taken
-    print('Prediction time: %.2f' % time_taken)
-    
-    pred = np.stack(preds_l)
-    pred = np.moveaxis(pred, 2, 4)
-    ps = pred.shape
-    pred = pred.reshape((yc.shape[1], xc.shape[1], ps[2], ps[3], n_classes))
-    pred = np.moveaxis(pred, 0, 2)
-    pred = pred.reshape(xc.shape[1] * ps[2], yc.shape[1] * ps[3] , n_classes)
-    cat = np.argmax(pred, 2)
-    
-    pred = colorir(cat)
-
-    # apply the overlay
-    alpha = 0.5
-    cv2.addWeighted(pred, alpha, imgo, 1 - alpha, 0, imgo)
-    
-    time_taken = time.time() - start_time
-    print('Total time: %.2f' % time_taken)
+def get_coords(contours, minArea, maxArea):
+    pts = []
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        if area >  minArea and area < maxArea:
+            M = cv2.moments(cnt)
+            cx = int(M['m10']/M['m00'])
+            cy = int(M['m01']/M['m00'])
+            pts.append([cx,cy,area])
+    return(np.array(pts))
 	
-	return imgo
+	
+def get_plants(img_name, out_img_name = None):
+	start_time = time.time()
+	print(img_name)
+	
+	img = cv2.imread(img_name)
+	imgo = img.copy()
+	img = img.astype(np.float32)
+	img -= rgb_mean
+	img /= rgb_std
+	
+	total_width, total_height = img.shape[:2]
+	xc, yc, xco, yco = calc_bb(total_width, total_height, input_height, input_width)
+
+	time_taken = time.time() - start_time
+	print('PreProc time: %.2f' % time_taken)
+	
+	preds_l = []
+	for yi in range(yc.shape[1]):
+		for xi in range(xc.shape[1]):
+			im = img[xc[0,xi]:xc[1,xi],yc[0,yi]:yc[1,yi]]   
+			im = im.reshape(np.insert(im.shape, 0, 1))
+			im = np.moveaxis(im, 3, 1)
+			img_tensor = torch.from_numpy(im)
+			img_variable = Variable(img_tensor)
+			img_variable = img_variable.to(device)
+			img_out = modelA(img_variable)
+			img_out = up(img_out)
+			preds = img_out.cpu().data.numpy()
+			preds = preds[:,:,xco[0,xi]:xco[1,xi],yco[0,yi]:yco[1,yi]] 
+			preds_l.append(preds)
+			
+			
+	time_taken = time.time() - start_time - time_taken
+	print('Prediction time: %.2f' % time_taken)
+	
+	pred = np.stack(preds_l)
+	pred = np.moveaxis(pred, 2, 4)
+	ps = pred.shape
+	pred = pred.reshape((yc.shape[1], xc.shape[1], ps[2], ps[3], n_classes))
+	pred = np.moveaxis(pred, 0, 2)
+	pred = pred.reshape(xc.shape[1] * ps[2], yc.shape[1] * ps[3] , n_classes)
+	cat = np.argmax(pred, 2)
+	pred = colorir(cat)
+	
+	plant_msk = (cat == 4).astype('uint8')
+	im_tmp, contours, hierarchy = cv2.findContours(plant_msk, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+	coords = get_coords(contours, 50, 2000)
+	coords[:, 1] *= -1
+	
+	# apply the overlay
+	alpha = 0.5
+	cv2.addWeighted(pred, alpha, imgo, 1 - alpha, 0, imgo)
+	if out_img_name is not None:
+		ptsn = out_img_name[:-4] + '.csv'
+		np.savetxt(ptsn, coords, delimiter=',', fmt='%i', newline='\n', header='X,Y,Area', comments='')
+		cv2.imwrite(out_img_name, imgo)
+		
+	time_taken = time.time() - start_time
+	print('Total time: %.2f' % time_taken)
+	
+	retval, buffer = cv2.imencode('.jpg', imgo)
+	img_str = base64.b64encode(buffer) 
+	return img_str
+	
+
+
 
