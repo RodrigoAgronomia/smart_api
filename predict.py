@@ -148,16 +148,13 @@ print('Modelo Ok')
 rgb_mean = data['mean']
 rgb_std = data['std']
 n_classes = len(data['classWeights'])
-new_ext = '.png'
 
 
 input_height = 1080
 input_width = 960
  
-n_frames = 123
-def get_plants(img_name, out_img_name):
+def get_plants(img_name):
     start_time = time.time()
-    print(img_name)
     
     img = cv2.imread(img_name)
     imgo = img.copy()
@@ -203,8 +200,9 @@ def get_plants(img_name, out_img_name):
     # apply the overlay
     alpha = 0.5
     cv2.addWeighted(pred, alpha, imgo, 1 - alpha, 0, imgo)
-    cv2.imwrite(out_img_name, imgo)
     
     time_taken = time.time() - start_time
     print('Total time: %.2f' % time_taken)
+	
+	return imgo
 
