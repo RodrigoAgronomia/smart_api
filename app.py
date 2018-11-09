@@ -15,7 +15,11 @@ Additional configuration:
     - It is loaded from /input
 """
 import os
-from flask import Flask, send_file, request
+import base64
+from io import BytesIO
+
+from flask import Flask, send_file, request, make_response, render_template
+
 from werkzeug.exceptions import BadRequest
 from werkzeug.utils import secure_filename
 
@@ -24,7 +28,11 @@ import predict
 ALLOWED_EXTENSIONS = set(['jpg', 'jpeg'])
 app = Flask(__name__)
 
+@app.route('/', methods=['GET'])
+def index():
+    return render_template('serving_template.html')
 
+	
 @app.route('/', methods=["POST"])
 def predict_plants():
     """
@@ -41,14 +49,18 @@ def predict_plants():
     if not allowed_file(filename):
         return BadRequest("Invalid file type")
 
-    input_filepath = os.path.join('./images/', filename)
-    output_filepath = 'msk_' + filename
-    input_file.save(filename)
+        # # Save Image to process
+    input_buffer = BytesIO()
+    output_buffer = BytesIO()
+    input_file.save(input_buffer)
 
-    # Get checkpoint filename from la_muse
-    predict.get_plants(filename, output_filepath)
-    return send_file(output_filepath, mimetype='image/jpg')
+    img = predict.get_plants(input_buffer)
+    img.save(output_buffer, format="JPEG")
+    img_str = base64.b64encode(output_buffer.getvalue())
 
+    response = make_response(img_str)
+    response.headers.set('Content-Type', 'image/jpeg')
+    return response
 
 def allowed_file(filename):
     return '.' in filename and \
